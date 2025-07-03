@@ -1,0 +1,27 @@
+[project]
+name = "mjol"
+version = "0.0.1"
+description = "python library for gff/gtf file manipulation"
+authors = [
+    { name = "HJ Ji", email = "hji20@jh.edu" },
+    { name = "Tomo Furutani", email = "tfuruta1@jh.edu" }
+]
+license = { text = "MIT" }
+readme = ""
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.11.7",
+    "pandas>=2.3.0",
+    "intervaltree>=3.1.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mjol"]
+
+# Optional: for editable installs
+[tool.setuptools.package-dir]
+"" = "src"
