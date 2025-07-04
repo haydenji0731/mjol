@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional, Dict, List, ForwardRef
-from intervaltree import IntervalTree
 
 GFeatureRef = ForwardRef("GFeature")
 
@@ -13,10 +12,10 @@ class GFeature(BaseModel):
     score : Optional[float]
     strand : str # ['.', '-', '+']
     frame : str # ['.', '0', '1', '2']
+    children : List[GFeatureRef] # type: ignore
     attributes : Dict[str, str]
     parent : Optional[str] = None
     id : Optional[str] = None
-    children : List[GFeatureRef] # type: ignore
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -28,9 +27,12 @@ class GFeature(BaseModel):
             if kwd in k.lower():
                 return v
         return None
+
+    def build_itree_from_children(self):
+        raise NotImplementedError
     
     def __repr__(self) -> str:
-        return f"{self.feature_type}:{self._id},{self.strand},{self.start}-{self.end},{self._hash}"
+        return f"{self.feature_type}:{self.id},{self.strand},{self.start}-{self.end}"
 
 def load_attributes(s: str, kv_sep: str = '=') -> dict:
     return {
