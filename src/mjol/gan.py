@@ -14,9 +14,9 @@ FEATURES = ['gene', 'transcript', 'exon', 'CDS']
 class GAn(BaseModel):
     filename : str
     format : str
-    genes : Dict[str, Dict[str, GFeature]]
-    txes : Dict[str, Dict[str, GFeature]]
-    orphans : List[GFeature]
+    genes : Dict[str, Dict[str, GFeature]] = Field(default_factory=dict)
+    txes : Dict[str, Dict[str, GFeature]] = Field(default_factory=dict)
+    orphans : List[GFeature] = Field(default_factory=list)
 
     def build_db(self, n_threads : int = 1):
         in_df = pd.read_csv(self.filename, sep='\t', 
@@ -117,3 +117,21 @@ class GAn(BaseModel):
         except Exception as e:
             raise RuntimeError(f"error while converting pd series to GFeature: {e}")
         return gfeat
+    
+    # TODO: add option to sort
+    def to_gff(self, fp: str):
+        with open(fp, "w") as f:
+            f.write("##gff-version 3\n")
+            for gene_chr in self.genes.values():
+                for gene in gene_chr.values():
+                    f.write(gene.to_gff_entry())
+                    for transcript in gene.children or []:
+                        f.write(transcript.to_gff_entry())
+                        for exon in transcript.children or []:
+                            f.write(exon.to_gff_entry())
+                            # CDS not implemented yet
+                            for cds in exon.children or []:
+                                f.write(cds.to_gff_entry())
+            for orphan in self.orphans:
+                f.write(orphan.to_gff_entry())
+

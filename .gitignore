@@ -1,2 +1,5 @@
 build/
 src/mjol.egg-info
+notebook/
+data/
+src/mjol/__pycache__/
