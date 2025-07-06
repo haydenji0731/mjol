@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, List, ForwardRef
 
 GFeatureRef = ForwardRef("GFeature")
@@ -34,6 +34,15 @@ class GFeature(BaseModel):
     def __repr__(self) -> str:
         return f"{self.feature_type}:{self.id},{self.strand},{self.start}-{self.end}"
 
+    def to_gff_entry(self) -> str:
+        attributes_str =";".join(f"{key}={value}" for key, value in self.attributes.items())
+        gff_entry = "\t".join([
+            str(x) if x is not None else '.' for x in [
+                self.chr, self.src, self.feature_type, self.start, self.end, self.score, self.strand, self.frame, attributes_str
+            ]
+        ])
+        return gff_entry + '\n'
+    
 def load_attributes(s: str, kv_sep: str = '=') -> dict:
     return {
         k.strip(): v.strip()
