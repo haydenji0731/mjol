@@ -204,7 +204,7 @@ class GAn(BaseModel):
         for chromosome in (self.txes.keys() | other.txes.keys()):
             self.txes[chromosome] = {**self.txes[chromosome], **other.txes[chromosome]}
         return self
-
+    
     def save_as_gix(self, filepath : str):
         with open(filepath, 'wb') as fh:
             pickle.dump(self, fh)

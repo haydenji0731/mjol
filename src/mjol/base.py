@@ -34,6 +34,7 @@ class GFeature(BaseModel):
     def __repr__(self) -> str:
         return f"{self.feature_type}:{self.id},{self.strand},{self.start}-{self.end}"
 
+
     def add_a_child(self, child, divide : bool = True):
         if divide:
             self.divider = len(self.children)
@@ -51,6 +52,7 @@ class GFeature(BaseModel):
             return gff_entry + '\n' + ''.join(gff_entry_children)
         else:
             return gff_entry + '\n'
+
 
 class IntervalGFeature(GFeature):
     itree: IntervalTree = Field(default_factory=IntervalTree)
