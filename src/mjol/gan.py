@@ -15,14 +15,14 @@ HDR = [
 FEATURES = ['gene', 'transcript', 'exon', 'CDS']
 
 # make entries in a column unique (for IDs)
-def make_unique(df: pd.DataFrame , column: str) -> tuple[pd.DataFrame, np.ndarray]:
-    duplicates = df.loc[df[column].duplicated(), column].unique()
+# def make_unique(df: pd.DataFrame , column: str) -> tuple[pd.DataFrame, np.ndarray]:
+#     duplicates = df.loc[df[column].duplicated(), column].unique()
 
-    count_series = df.groupby(column).cumcount()
-    new_id = df[column] + np.where(count_series > 0, "-" + count_series.astype(str), '')
-    df.loc[:, column] = new_id
+#     count_series = df.groupby(column).cumcount()
+#     new_id = df[column] + np.where(count_series > 0, "-" + count_series.astype(str), '')
+#     df.loc[:, column] = new_id
 
-    return (df, duplicates)
+#     return (df, duplicates)
 
 class GAn(BaseModel):
     filename : str
@@ -32,7 +32,7 @@ class GAn(BaseModel):
     orphans : List[GFeature] = Field(default_factory=list)
 
     # duplicate_id: 'make_unique' or 'raise_error'
-    def build_db(self, duplicate_id : str = 'make_unique', n_threads : int = 1):
+    def build_db(self, n_threads : int = 1):
         in_df = pd.read_csv(self.filename, sep='\t', 
                         comment='#', header=None)
         in_df.columns = HDR
@@ -41,7 +41,7 @@ class GAn(BaseModel):
         in_df['attributes'] = in_df['attributes'].apply(
             lambda s: load_attributes(s, kv_sep = ' ' if self.format == '' else '=')
         )
-        in_df['ID'] = in_df['attributes'].apply(lambda s: s["ID"] if "ID" in s.keys() else None)
+        # in_df['ID'] = in_df['attributes'].apply(lambda s: s["ID"] if "ID" in s.keys() else None)
 
         sub_dfs = dict()
         for x in FEATURES:
@@ -52,25 +52,25 @@ class GAn(BaseModel):
         tx_df = sub_dfs['transcript']
     
         # check ids
-        if duplicate_id == 'raise_error':
-            _, gene_duplicates = make_unique(gene_df, "ID")
-            _, tx_duplicates = make_unique(tx_df, "ID")
-            if gene_duplicates or tx_duplicates:
-                raise ValueError("There are duplicate IDs. Set `duplicate_id` to 'make_unique' to avoid this" )
-        elif duplicate_id == 'make_unique':
-            gene_df, _ = make_unique(gene_df, "ID")
-            tx_df, _ = make_unique(tx_df, "ID")
-        else:
-            raise ValueError(f"duplicate_id must be 'raise_error' or 'make_unique', got {duplicate_id}")
+        # if duplicate_id == 'raise_error':
+        #     _, gene_duplicates = make_unique(gene_df, "ID")
+        #     _, tx_duplicates = make_unique(tx_df, "ID")
+        #     if gene_duplicates or tx_duplicates:
+        #         raise ValueError("There are duplicate IDs. Set `duplicate_id` to 'make_unique' to avoid this" )
+        # elif duplicate_id == 'make_unique':
+        #     gene_df, _ = make_unique(gene_df, "ID")
+        #     tx_df, _ = make_unique(tx_df, "ID")
+        # else:
+        #     raise ValueError(f"duplicate_id must be 'raise_error' or 'make_unique', got {duplicate_id}")
         
-        gene_df.loc[:, 'attributes'] = gene_df.apply(
-            lambda row: {**row['attributes'], "ID": row["ID"]},
-            axis=1
-        )
-        tx_df.loc[:,'attributes'] = tx_df.apply(
-            lambda row: {**row['attributes'], 'ID':row['ID']},
-            axis=1
-        )
+        # gene_df.loc[:, 'attributes'] = gene_df.apply(
+        #     lambda row: {**row['attributes'], "ID": row["ID"]},
+        #     axis=1
+        # )
+        # tx_df.loc[:,'attributes'] = tx_df.apply(
+        #     lambda row: {**row['attributes'], 'ID':row['ID']},
+        #     axis=1
+        # )
         # add genes to dict
         for chr, curr_df in gene_df.groupby("chr"):
             self.genes[chr] = self._pd_df2genes(curr_df)
@@ -182,37 +182,10 @@ class GAn(BaseModel):
 
     # TODO: make_unique option to cover cases where ids may not be unique
     def merge(self, other: GAnRef, duplicate_id: str = 'make_unique', make_unique_suffix: str = ('_1')) -> GAnRef:
+        # TODO: change filename and format attribute?
         for chromosome in (self.genes.keys() | other.genes.keys()):
-            if (chromosome in self.genes.keys()) and (chromosome in other.genes.keys()):
-                overlapping_ids = self.genes[chromosome].keys() & other.genes[chromosome].keys()
-                if overlapping_ids:
-                    if duplicate_id == 'raise_error':
-                        raise ValueError(f"Duplicate gene IDs found on chromosome {chromosome}: {overlapping_ids}")
-                    elif duplicate_id == 'make_unique':
-                        temp_dict = {
-                            (key + make_unique_suffix if key in overlapping_ids else key): value
-                            for key, value in other.genes[chromosome].items()
-                        }
-                        self.genes[chromosome] = {**self.genes[chromosome], **temp_dict}
-                    else:
-                        raise ValueError(f"duplicate_id must be 'raise_error' or 'make_unique', got {duplicate_id}")
-                else:
-                    self.genes[chromosome] = {**self.genes[chromosome], **other.genes[chromosome]}
+            self.genes[chromosome] = {**self.genes[chromosome], **other.genes[chromosome]}
         for chromosome in (self.txes.keys() | other.txes.keys()):
-            if (chromosome in self.txes.keys()) and (chromosome in other.txes.keys()):
-                overlapping_ids = self.txes[chromosome].keys() & other.txes[chromosome].keys()
-                if overlapping_ids:
-                    if duplicate_id == 'raise_error':
-                        raise ValueError(f"Duplicate gene IDs found on chromosome {chromosome}: {overlapping_ids}")
-                    elif duplicate_id == 'make_unique':
-                        temp_dict = {
-                            (key + make_unique_suffix if key in overlapping_ids else key): value
-                            for key, value in other.txes[chromosome].items()
-                        }
-                        self.txes[chromosome] = {**self.txes[chromosome], **temp_dict}
-                    else:
-                        raise ValueError(f"duplicate_id must be 'raise_error' or 'make_unique', got {duplicate_id}")
-                else:
-                    self.txes[chromosome] = {**self.txes[chromosome], **other.txes[chromosome]}
+            self.txes[chromosome] = {**self.txes[chromosome], **other.txes[chromosome]}
         return self
 
