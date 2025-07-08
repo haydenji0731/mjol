@@ -39,14 +39,18 @@ class GFeature(BaseModel):
             self.divider = len(self.children)
         self.children.append(child)
 
-    def to_gff_entry(self) -> str:
+    def to_gff_entry(self, children=False) -> str:
         attributes_str =";".join(f"{key}={value}" for key, value in self.attributes.items())
         gff_entry = "\t".join([
             str(x) if x is not None else '.' for x in [
                 self.chr, self.src, self.feature_type, self.start, self.end, self.score, self.strand, self.frame, attributes_str
             ]
         ])
-        return gff_entry + '\n'
+        if children:
+            gff_entry_children = [child.to_gff_entry(children=True) for child in self.children]
+            return gff_entry + '\n' + ''.join(gff_entry_children)
+        else:
+            return gff_entry + '\n'
 
 class IntervalGFeature(GFeature):
     itree: IntervalTree = Field(default_factory=IntervalTree)
