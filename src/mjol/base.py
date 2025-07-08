@@ -34,14 +34,18 @@ class GFeature(BaseModel):
     def __repr__(self) -> str:
         return f"{self.feature_type}:{self.id},{self.strand},{self.start}-{self.end}"
 
-    def to_gff_entry(self) -> str:
+    def to_gff_entry(self, children=False) -> str:
         attributes_str =";".join(f"{key}={value}" for key, value in self.attributes.items())
         gff_entry = "\t".join([
             str(x) if x is not None else '.' for x in [
                 self.chr, self.src, self.feature_type, self.start, self.end, self.score, self.strand, self.frame, attributes_str
             ]
         ])
-        return gff_entry + '\n'
+        if children:
+            gff_entry_children = [child.to_gff_entry(children=True) for child in self.children]
+            return gff_entry + '\n' + ''.join(gff_entry_children)
+        else:
+            return gff_entry + '\n'
     
 def load_attributes(s: str, kv_sep: str = '=') -> dict:
     return {
