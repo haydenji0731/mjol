@@ -12,12 +12,13 @@ HDR = [
     'end', 'score', 'strand', 'frame', 'attributes'
 ]
 
-FEATURES = ['gene', 'transcript', 'exon', 'CDS']
+# FEATURES = ['gene', 'transcript', 'exon', 'CDS']
 
+# features should be in hiearchical order
 class GAn(BaseModel):
     filename : str
     format : str
-
+    features : List[str] = ['gene', 'transcript', 'exon', 'CDS']
     genes : Dict[str, Dict[str, GFeature]] = Field(default_factory=dict)
     txes : Dict[str, Dict[str, GFeature]] = Field(default_factory=dict)
     orphans : List[GFeature] = Field(default_factory=list)
@@ -34,13 +35,13 @@ class GAn(BaseModel):
         )
 
         sub_dfs = dict()
-        for x in FEATURES:
+        for x in self.features:
             sub_dfs[x] = in_df[in_df['feature_type'] == x]
             
-        gene_df = sub_dfs['gene']
-        tx_df = sub_dfs['transcript']
-        exon_df = sub_dfs['exon']
-        cds_df = sub_dfs['CDS']
+        gene_df = sub_dfs[self.features[0]]
+        tx_df = sub_dfs[self.features[1]]
+        exon_df = sub_dfs[self.features[2]]
+        cds_df = sub_dfs[self.features[3]]
 
         # process genes
         for chr, curr_df in gene_df.groupby("chr"):
@@ -185,7 +186,6 @@ class GAn(BaseModel):
             for orphan in self.orphans:
                 f.write(orphan.to_gff_entry())
 
-    # TODO: transcripts might still be stored; it won't show up via to_gff() but still exists in memory
     def delete_gene(self, id:str):
         for _, genes_dict in self.genes.items():
             if id in genes_dict:
@@ -196,19 +196,107 @@ class GAn(BaseModel):
                 return delete_gene.to_gff_entry(children=True)
         raise KeyError(f'Gene ID {id} not found in the gene annotation')
 
-    # NOTE: if self and other have entities with same ID but different loc, problem
-    def merge(self, other):
-        # TODO: compute the intersection between self and other's key space
+    def add_gene(self, gene:GFeature) -> str:
+        for chr in self.genes.keys():
+            if gene.id in self.genes[chr]:
+                print("WARNING: A gene with the same ID exists and will be overwritten")
+        self.genes[gene.chr][gene.id] = gene
+        for child in gene.children:
+            self.txes[child.chr][child.id] = child
+        return gene.to_gff_entry(children= True)
+
+
+    def merge(self, other:GAnRef):
+
+        # check for duplicate ids
+        self_genes = set()
+        self_txes = set()
+        other_genes = set()
+        other_txes = set()
+        for chromosome in self.genes.keys():
+            self_genes.union(set(self.genes[chromosome].keys()))
+            self_txes.union(set(self.txes[chromosome].keys()))
+        for chromosome in other.genes.keys():
+            other_genes.union(set(other.genes[chromosome].keys()))
+            other_txes.union(set(other.txes[chromosome].keys()))
+        if (self_genes & other_genes) or (self_txes & other_txes):
+            print(f"WARNING: {len(self_genes & other_genes) + len(self_txes & other_txes)} duplicate IDs found")
+
         for chromosome in (self.genes.keys() | other.genes.keys()):
             self.genes[chromosome] = {**self.genes[chromosome], **other.genes[chromosome]}
         for chromosome in (self.txes.keys() | other.txes.keys()):
             self.txes[chromosome] = {**self.txes[chromosome], **other.txes[chromosome]}
+        self.filename = self.filename + other.filename
         return self
     
+    # returns a reference
+    def get_gene(self, id:str):
+        for chr, genes_dict in self.genes.items():
+            if id in genes_dict:
+                return genes_dict[id]
+        raise KeyError(f'Gene ID {id} not found in the gene annotation')
+    
+    def _get_chr_gene(self, id:str) -> tuple:
+        for chr, genes_dict in self.genes.items():
+            if id in genes_dict:
+                return chr, genes_dict[id]
+        raise KeyError(f'Gene ID {id} not found in the gene annotation')
+    
+    def get_descendants(self, feature: GFeature) -> List[GFeature]:
+        descendants = list()
+        for child in feature.children:
+            descendants.append(child)
+            descendants.extend(self.get_descendants(child))
+        return descendants
+        
     def save_as_gix(self, filepath : str):
         with open(filepath, 'wb') as fh:
             pickle.dump(self, fh)
     
+    # NOTE: this function can only change IDs for genes
+    def solve_synonym(self, self_id: str, other: GAnRef, other_id: str,
+                      update_gene_attributes: List[tuple] = [], update_children_attributes: List[tuple] = [],
+                      exclude_attributes: List[str] = []) -> tuple:
+        # update gene GFeature
+        old_chr, old_feature = self._get_chr_gene(self_id)
+        new_chr, new_feature = other._get_chr_gene(other_id)
+
+        # save old entries
+        old_entries = old_feature.to_gff_entry(children=True)
+        # gene-level updates
+        ## class attribute
+
+        old_feature.id = new_feature.id
+        for key_old, key_new in update_gene_attributes:
+            if (key_old in old_feature.attributes) and (key_new in new_feature.attributes):
+                old_feature.attributes[key_old] = new_feature.attributes[key_new]
+        for key in exclude_attributes:
+            if key in old_feature.attributes:
+                del old_feature.attributes[key]
+            
+        ## gene dictionary 
+
+        del self.genes[old_chr][self_id]
+        self.genes[old_chr][other_id] = old_feature
+        ## change parent field of transcripts
+
+        for child in old_feature.children:
+            ## class attribute
+            child.parent = new_feature.id
+            child.attributes['Parent'] = new_feature.id
+        # update attributes for children
+        for descendant in self.get_descendants(old_feature):
+            for key_old, key_new in update_children_attributes:
+                if (key_old in descendant.attributes) and (key_new in new_feature.attributes):
+                    descendant.attributes[key_old] = new_feature.attributes[key_new]
+            for key in exclude_attributes:
+                if key in descendant.attributes:
+                    del descendant.attributes[key]
+        # get updated entries
+        new_entries = old_feature.to_gff_entry(children=True)
+
+        return (old_entries, new_entries)
+        
 def load_gan_from_gix(filepath : str):
     try:
         with open(filepath, 'rb') as fh:
@@ -216,3 +304,5 @@ def load_gan_from_gix(filepath : str):
     except Exception as e:
         raise RuntimeError(f"error while loading .gix: {e}")
     return res
+
+
