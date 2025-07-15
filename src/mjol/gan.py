@@ -32,8 +32,8 @@ class GAn(BaseModel):
 
                 if f.aid in self.lookup:
                     self.lookup[f.aid].append(f.uid)
-
-                self.lookup[f.aid] = [f.uid]
+                else:
+                    self.lookup[f.aid] = [f.uid]
 
             if f.parent in self.lookup:
                 puid = self.get_uid(f.parent, f)
@@ -62,13 +62,46 @@ class GAn(BaseModel):
             res.extend(self.get_desc(child))
         return res
     
-    # TODO
-    def delete_feature(self):
-        raise NotImplementedError
+    def pop_feature(self, uid: str) -> str:
+        if uid not in self.features:
+            raise KeyError(f'{uid} not found in features')
+        delete_feature = self.features[uid]
+        entries_to_delete = delete_feature.to_gff_entry(include_children = True)
+        # delete children
+        if delete_feature.children:
+            for child in delete_feature.children:
+                self.delete_feature(child.uid)
+        # delete feature from parent
+        if delete_feature.parent_uid:
+            self.features[delete_feature.parent_uid].children.remove(delete_feature)
+        # delete feature from features
+        del self.features[delete_feature.uid]
+        # delete feature from lookup
+        if delete_feature.aid:
+            self.lookup[delete_feature.aid] = [feature for feature in self.lookup[delete_feature.aid] if feature.uid != delete_feature.uid]
+        return entries_to_delete
 
-    # TODO
-    def add_feature(self):
-        raise NotImplementedError
+
+    def add_feature(self, feature:GFeature) -> str:
+        if feature.uid in self.features:
+            print("WARNING: feature with same biotype and location already exists and will be overwritten")
+        self.features[feature.uid] = feature
+        if feature.aid:
+            if feature.aid in self.lookup:
+                self.lookup[feature.aid].append(feature.uid)
+            else:
+                self.lookup[feature.aid] = [feature.uid]
+        if feature.parent:
+            if feature.parent in self.lookup:
+                puid = self.get_uid(feature.parent, feature)
+                feature.set_parent_uid(feature)
+                self.features[puid].add_a_child(feature)
+            else:
+                print("WARNING: feature has parent attribute, but the parent could not be found in the annotation")
+        for child in feature.children:
+            self.add_feature(child)
+        return feature.to_gff_entry(include_children=True)
+                
     
     def save_as_gix(self, file_path : str):
         with open(file_path, 'wb') as fh:
