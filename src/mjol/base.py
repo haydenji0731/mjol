@@ -45,7 +45,12 @@ class GFeature(BaseModel):
         return None
 
     def _assign_uid(self):
-        s = f'{self.chr}.{self.start}.{self.end}.{self.strand}.{self.feature_type}'
+        """
+        hashes the entire gtf/gff line to obtain a uid
+        """
+        s = f'{self.chr}\t{self.src}\t{self.feature_type}\t{self.start}\t{self.end}\t'
+        s += f'{'.' if not self.score else self.score}\t{self.strand}\t{self.frame}\t'
+        s += ';'.join([f'{k}={v}' for k, v in self.attributes.items()])
         uid = hashlib.sha256(s.encode()).hexdigest()
         return uid
     
