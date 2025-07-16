@@ -27,9 +27,12 @@ class GAn(BaseModel):
         rows = in_df.to_dict('records')
         for row in rows:
             f = self._create_gfeature(row)
-            self.features[f.uid] = f
-            if f.aid:
+            if f.uid in self.features:
+                self.features[f.uid].append(f)
+            else:
+                self.features[f.uid] = [f]
 
+            if f.aid:
                 if f.aid in self.lookup:
                     self.lookup[f.aid].append(f.uid)
                 else:
@@ -37,9 +40,12 @@ class GAn(BaseModel):
 
             if f.parent in self.lookup:
                 puid = self.get_uid(f.parent, f)
-                
                 f.set_parent_uid(puid)
-                self.features[puid].add_a_child(f)
+                parent = self.get_feature(puid, f.parent)
+                if not parent:
+                    print(f'could not populate parent-child relationship for {f}')
+                else:
+                    parent.add_a_child(f)
     
     # collision-safe
     def get_uid(self, aid : str, f : GFeature = None):
@@ -50,10 +56,18 @@ class GAn(BaseModel):
             raise RuntimeError(f'provide a feature to resolve lookup collision')
         return max(uids, key=lambda uid: f.calc_sim(self.features[uid]))
         
-    def get_feature(self, uid : str):
+    def get_feature(self, uid : str, aid : str = None):
         if uid not in self.features:
             raise KeyError(f'{uid} not found in features')
-        return self.features[uid]
+        if len(self.features[uid]) > 1:
+            if not aid:
+                raise ValueError(f'provide a attribute ID to resolve uid collision')
+            for f in self.features[uid]:
+                if f.aid == aid:
+                    return f
+        else:
+            return self.features[uid][0]
+        return None
     
     def get_desc(self, uid : str):
         res = []
@@ -101,11 +115,6 @@ class GAn(BaseModel):
         for child in feature.children:
             self.add_feature(child)
         return feature.to_gff_entry(include_children=True)
-                
-    
-    def save_as_gix(self, file_path : str):
-        with open(file_path, 'wb') as fh:
-            pickle.dump(self, fh)
 
     def _create_gfeature(self, row):
         gfeat = GFeature(
@@ -122,6 +131,14 @@ class GAn(BaseModel):
                     pak = self.pak
                 )
         return gfeat
+
+    def save_as_gix(self, file_path : str):
+        with open(file_path, 'wb') as fh:
+            pickle.dump(self, fh)
+    
+    def clear(self):
+        features = dict()
+        lookup = dict()
 
 def load_from_gix(file_path : str):
     try:
