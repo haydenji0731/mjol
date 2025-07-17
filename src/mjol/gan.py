@@ -28,9 +28,13 @@ class GAn(BaseModel):
         rows = in_df.to_dict('records')
         for row in rows:
             f = self._create_gfeature(row)
+            if f.uid in self.features:
+                raise RuntimeError(f'non-unique uid detected : {f.uid}')
+            
             self.features[f.uid] = f
-            if f.aid:
 
+            if f.aid:
+                # attribute ID collision detected
                 if f.aid in self.lookup:
                     self.lookup[f.aid].append(f.uid)
                 else:
@@ -38,9 +42,9 @@ class GAn(BaseModel):
 
             if f.parent in self.lookup:
                 puid = self.get_uid(f.parent, f)
-                
                 f.set_parent_uid(puid)
-                self.features[puid].add_a_child(f)
+                parent = self.get_feature(puid)
+                parent.add_a_child(f)
     
     # collision-safe
     def get_uid(self, aid : str, f : GFeature = None):
@@ -104,11 +108,6 @@ class GAn(BaseModel):
         for child in feature.children:
             self.add_feature(child)
         return feature.to_gff_entry(include_children=True)
-                
-    
-    def save_as_gix(self, file_path : str):
-        with open(file_path, 'wb') as fh:
-            pickle.dump(self, fh)
 
     def _create_gfeature(self, row):
         gfeat = GFeature(
@@ -132,6 +131,13 @@ class GAn(BaseModel):
             f.write("##gff-version 3\n")
             for feature in self.features.values():
                 f.write(feature.to_gff_entry(include_children=False))
+    def save_as_gix(self, file_path : str):
+        with open(file_path, 'wb') as fh:
+            pickle.dump(self, fh)
+    
+    def clear(self):
+        features = dict()
+        lookup = dict()
 
 def load_from_gix(file_path : str):
     try:
