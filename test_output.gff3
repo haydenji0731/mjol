@@ -1,0 +1,11 @@
+##gff-version 3
+chr1	.	gene	1000	5000	.	+	.	ID=geneA;Name=GeneA
+chr1	.	transcript	1000	5000	.	+	.	ID=txA;Parent=geneA;Name=TxA
+chr1	.	exon	1000	1200	.	+	.	ID=exonA1;Parent=txA
+chr1	.	exon	1500	1800	.	+	.	ID=exonA2;Parent=txA
+chr1	.	CDS	1000	1200	.	+	0	ID=cdsA1;Parent=txA
+chr1	.	CDS	1500	1800	.	+	2	ID=cdsA2;Parent=txA
+chr1	.	gene	6000	9000	.	+	.	ID=geneB;Name=GeneB
+chr1	.	transcript	6000	9000	.	+	.	ID=txB;Parent=geneB;Name=TxB
+chr1	.	exon	6000	6500	.	+	.	ID=exonB1;Parent=txB
+chr1	.	CDS	6000	6500	.	+	0	ID=cdsB1;Parent=txB

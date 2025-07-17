@@ -15,6 +15,7 @@ class GAn(BaseModel):
     features : dict = Field(default_factory=dict)
     lookup : dict = Field(default_factory=dict)
     
+    # NOTE: child feature must come after parent feature in GFF file
     def build_db(self):
         in_df = pd.read_csv(self.file_name, sep='\t', comment='#', header=None)
         in_df.columns = HDR
@@ -69,8 +70,8 @@ class GAn(BaseModel):
         entries_to_delete = delete_feature.to_gff_entry(include_children = True)
         # delete children
         if delete_feature.children:
-            for child in delete_feature.children:
-                self.delete_feature(child.uid)
+            for child in delete_feature.children[:]:
+                self.pop_feature(child.uid)
         # delete feature from parent
         if delete_feature.parent_uid:
             self.features[delete_feature.parent_uid].children.remove(delete_feature)
@@ -78,13 +79,15 @@ class GAn(BaseModel):
         del self.features[delete_feature.uid]
         # delete feature from lookup
         if delete_feature.aid:
-            self.lookup[delete_feature.aid] = [feature for feature in self.lookup[delete_feature.aid] if feature.uid != delete_feature.uid]
+            self.lookup[delete_feature.aid] = [feature for feature in self.lookup[delete_feature.aid] if feature != delete_feature.uid]
+            if not self.lookup[delete_feature.aid]:
+                del self.lookup[delete_feature.aid]
         return entries_to_delete
 
 
     def add_feature(self, feature:GFeature) -> str:
         if feature.uid in self.features:
-            print("WARNING: feature with same biotype and location already exists and will be overwritten")
+            print("WARNING: duplicate feature already exists and will be overwritten")
         self.features[feature.uid] = feature
         if feature.aid:
             if feature.aid in self.lookup:
@@ -94,8 +97,8 @@ class GAn(BaseModel):
         if feature.parent:
             if feature.parent in self.lookup:
                 puid = self.get_uid(feature.parent, feature)
-                feature.set_parent_uid(feature)
-                self.features[puid].add_a_child(feature)
+                feature.set_parent_uid(puid)
+                #self.features[puid].add_a_child(feature)
             else:
                 print("WARNING: feature has parent attribute, but the parent could not be found in the annotation")
         for child in feature.children:
@@ -122,6 +125,13 @@ class GAn(BaseModel):
                     pak = self.pak
                 )
         return gfeat
+
+    # TODO: add option to sort
+    def to_gff3(self, fp):
+        with open(fp, "w") as f:
+            f.write("##gff-version 3\n")
+            for feature in self.features.values():
+                f.write(feature.to_gff_entry(include_children=False))
 
 def load_from_gix(file_path : str):
     try:

@@ -12,4 +12,5 @@ def solve_synonym(annotation:GAn, uid:str, other:GAn, other_uid: str,
     old_feature = annotation.get_feature(uid)
     new_feature = other.get_feature(other_uid)
     
+    
     raise NotImplementedError
