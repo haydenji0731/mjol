@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, ForwardRef
+from typing import Optional, Dict, List, ForwardRef, Tuple
 import hashlib
 import pickle
 
