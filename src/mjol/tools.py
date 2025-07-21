@@ -43,8 +43,8 @@ def solve_synonym(original:GAn, uid:str, new:GAn, new_uid: str,
     # do the same for children
     for child in old_feature.children[:]:
         # assign parent uid
-        set_case_insensitive(child.attributes, child.pak, old_feature.parent_aid)
-        child.parent_uid = old_feature.uid
+        set_case_insensitive(child.attributes, child.pak, old_feature.aid)
+        child.gid.parent_uid = old_feature.uid
         solve_synonym(original, child.uid, new, new_uid, 
                                 update_attributes_rule, exclude_attributes)
 
