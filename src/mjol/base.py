@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, ForwardRef
+from typing import Optional, Dict, List, ForwardRef, Tuple
 import hashlib
 import pickle
 
@@ -31,7 +31,7 @@ class GFeature(BaseModel):
         self._populate_gid()
     
     def __repr__(self) -> str:
-        return f"{self.feature_type}:{self.uid},{self.chr},{self.strand},{self.start}-{self.end}"
+        return f"{self.feature_type}:{self.aid or ''}:{self.uid},{self.chr},{self.strand},{self.start}-{self.end}"
     
     def _populate_gid(self):
         self.gid.uid = self._assign_uid()
@@ -68,7 +68,7 @@ class GFeature(BaseModel):
             ]
         ])
         if include_children:
-            children_entry = [child.to_gff_entry(children=True) for child in self.children]
+            children_entry = [child.to_gff_entry(include_children=True) for child in self.children]
             return entry + '\n' + ''.join(children_entry)
         return entry + '\n'
     
