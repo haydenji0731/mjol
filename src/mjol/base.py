@@ -6,7 +6,7 @@ import pickle
 class GId(BaseModel):
     uid : Optional[str] = None
     aid : Optional[str] = None
-    parent : Optional[str] = None
+    parent_aid : Optional[str] = None
     parent_uid : Optional[str] = None
 
 GFeatureRef = ForwardRef("GFeature")
@@ -36,7 +36,7 @@ class GFeature(BaseModel):
     def _populate_gid(self):
         self.gid.uid = self._assign_uid()
         self.gid.aid = self._infer(self.iak)
-        self.gid.parent = self._infer(self.pak)
+        self.gid.parent_aid = self._infer(self.pak)
 
     def _infer(self, ak):
         for k, v in self.attributes.items():
@@ -91,9 +91,11 @@ class GFeature(BaseModel):
         return self.gid.aid
     
     @property
-    def parent(self):
-        return self.gid.parent
+    def parent_aid(self):
+        return self.gid.parent_aid
 
     @property
     def parent_uid(self):
         return self.gid.parent_uid
+    
+
