@@ -1,4 +1,5 @@
 from mjol.gan import *
+from typing import Tuple
 
 def set_case_insensitive(d, target_key, new_value):
     for k in d:
@@ -13,9 +14,14 @@ ex: 'gene': [('ID, 'ID'), ('product', 'product'), ('Dbxref', 'dbxref')]
 ex: 'default': [('gene', 'gene')] -> 'default' is applied for any feature not included in update attributes rule
 NOTE: only attributes for gene-level information can be updated (attributes can only be updated using attributes from gene entries)
 """
-def solve_synonym(original:GAn, uid:str, new:GAn, new_uid: str,
-                  update_attributes_rule: Dict[str, List[Tuple[str, str]]] = {}, 
-                  exclude_attributes: List[str] = []) -> tuple:
+def solve_synonym(
+    original : GAn, 
+    uid : str, 
+    new : GAn, 
+    new_uid : str,
+    update_attributes_rule : Dict[str, List[Tuple[str, str]]] = {}, 
+    exclude_attributes: List[str] = []
+    ) -> tuple:
     
     old_feature = original.get_feature(uid)
     new_feature = new.get_feature(new_uid)
@@ -39,6 +45,7 @@ def solve_synonym(original:GAn, uid:str, new:GAn, new_uid: str,
     # update IDs
     old_feature._populate_gid()
     original.add_feature(old_feature, include_children=False)
+
 
     # do the same for children
     for child in old_feature.children[:]:

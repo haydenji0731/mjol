@@ -1,6 +1,7 @@
 from mjol.base import *
 from mjol.utils import *
 import pandas as pd
+import pickle
 
 HDR = [
     'chr', 'src', 'feature_type', 'start', 
@@ -39,12 +40,20 @@ class GAn(BaseModel):
                     self.lookup[f.aid].append(f.uid)
                 else:
                     self.lookup[f.aid] = [f.uid]
-
-            if f.parent in self.lookup:
-                puid = self.get_uid(f.parent, f)
+        
+        for f in self.features.values():
+            if f.paid in self.lookup:
+                puid = self.get_uid(f.paid, f)
                 f.set_parent_uid(puid)
                 parent = self.get_feature(puid)
                 parent.add_a_child(f)
+
+            # OLD version for constructing parent-child relationship
+            # if f.parent in self.lookup:
+            #     puid = self.get_uid(f.parent, f)
+            #     f.set_parent_uid(puid)
+            #     parent = self.get_feature(puid)
+            #     parent.add_a_child(f)
     
     # collision-safe
     def get_uid(self, aid : str, f : GFeature = None):
@@ -77,8 +86,8 @@ class GAn(BaseModel):
                 for child in delete_feature.children[:]:
                     self.pop_feature(child.uid)
         # delete feature from parent
-        if delete_feature.parent_uid and delete_feature.parent_uid in self.features:
-            self.features[delete_feature.parent_uid].children.remove(delete_feature)
+        if delete_feature.puid and delete_feature.puid in self.features:
+            self.features[delete_feature.puid].children.remove(delete_feature)
         # delete feature from features
         del self.features[delete_feature.uid]
         # delete feature from lookup
@@ -88,20 +97,28 @@ class GAn(BaseModel):
                 del self.lookup[delete_feature.aid]
         return entries_to_delete
 
-
-    def add_feature(self, feature:GFeature, include_children = True) -> str:
+    def add_feature(
+        self, 
+        feature : GFeature, 
+        include_children : bool = True
+    ) -> str:
         if feature.uid in self.features:
-            print("WARNING: duplicate feature already exists and will be overwritten")
+            print("WARNING : duplicate feature already exists and will be overwritten")
+        
         self.features[feature.uid] = feature
         if feature.aid:
             if feature.aid in self.lookup:
                 self.lookup[feature.aid].append(feature.uid)
             else:
                 self.lookup[feature.aid] = [feature.uid]
-        if feature.parent:
-            if feature.parent in self.lookup:
-                puid = self.get_uid(feature.parent, feature)
-                feature.set_parent_uid(puid)
+                
+        if feature.paid:
+            if feature.paid in self.lookup:
+                puid = self.get_uid(feature.paid, feature)
+                # feature.set_parent_uid(puid)
+                feature.puid = puid
+
+                # TODO: how does this behave?
                 if feature not in self.features[puid].children:
                     self.features[puid].add_a_child(feature)
             else:
@@ -137,6 +154,7 @@ class GAn(BaseModel):
         with open(file_path, 'wb') as fh:
             pickle.dump(self, fh)
     
+    # TODO: fix this
     def clear(self):
         features = dict()
         lookup = dict()

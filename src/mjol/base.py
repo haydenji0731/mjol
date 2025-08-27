@@ -1,13 +1,12 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, ForwardRef, Tuple
+from typing import Optional, Dict, List, ForwardRef
 import hashlib
-import pickle
 
 class GId(BaseModel):
     uid : Optional[str] = None
     aid : Optional[str] = None
-    parent : Optional[str] = None
-    parent_uid : Optional[str] = None
+    paid : Optional[str] = None # parent_aid
+    puid : Optional[str] = None # parent_uid
 
 GFeatureRef = ForwardRef("GFeature")
 
@@ -36,7 +35,7 @@ class GFeature(BaseModel):
     def _populate_gid(self):
         self.gid.uid = self._assign_uid()
         self.gid.aid = self._infer(self.iak)
-        self.gid.parent = self._infer(self.pak)
+        self.gid.paid = self._infer(self.pak)
 
     def _infer(self, ak):
         for k, v in self.attributes.items():
@@ -56,9 +55,10 @@ class GFeature(BaseModel):
     
     def add_a_child(self, child):
         self.children.append(child)
-    
+
+    # TODO: remove this func usage everywhere
     def set_parent_uid(self, puid):
-        self.gid.parent_uid = puid
+        self.gid.puid = puid
     
     def to_gff_entry(self, include_children : bool = False):
         attributes_str =";".join(f"{key}={value}" for key, value in self.attributes.items())
@@ -81,19 +81,46 @@ class GFeature(BaseModel):
         score += abs(self.start - other.start)
         score += abs(self.end - other.end)
         return score
+    
+    def get_chain(self, feature_type, sort=True):
+        chain = []
+        for child in self.children:
+            if child.feature_type == feature_type:
+                chain.append((child.start, child.end))
+        if sort:
+            return sorted(chain)
+        return chain
 
+    # getter, setter methods
+    
     @property
     def uid(self):
         return self.gid.uid
     
+    @uid.setter
+    def uid(self, new_uid):
+        self.gid.uid = new_uid
+        
     @property
     def aid(self):
         return self.gid.aid
+
+    @aid.setter
+    def aid(self, new_aid):
+        self.gid.aid = new_aid
     
     @property
-    def parent(self):
-        return self.gid.parent
+    def paid(self):
+        return self.gid.paid
+
+    @paid.setter
+    def paid(self, new_paid):
+        self.gid.paid = new_paid
 
     @property
-    def parent_uid(self):
-        return self.gid.parent_uid
+    def puid(self):
+        return self.gid.puid
+
+    @puid.setter
+    def puid(self, new_puid):
+        self.gid.puid = new_puid
