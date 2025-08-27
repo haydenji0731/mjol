@@ -40,16 +40,10 @@ class GAn(BaseModel):
                     self.lookup[f.aid].append(f.uid)
                 else:
                     self.lookup[f.aid] = [f.uid]
-<<<<<<< HEAD
         
         for f in self.features.values():
             if f.paid in self.lookup:
                 puid = self.get_uid(f.paid, f)
-=======
-
-            if f.parent_aid in self.lookup:
-                puid = self.get_uid(f.parent_aid, f)
->>>>>>> 802966b2e9d020e3ea167f9341ed44b8cc79054e
                 f.set_parent_uid(puid)
                 parent = self.get_feature(puid)
                 parent.add_a_child(f)
@@ -117,7 +111,6 @@ class GAn(BaseModel):
                 self.lookup[feature.aid].append(feature.uid)
             else:
                 self.lookup[feature.aid] = [feature.uid]
-<<<<<<< HEAD
                 
         if feature.paid:
             if feature.paid in self.lookup:
@@ -126,12 +119,6 @@ class GAn(BaseModel):
                 feature.puid = puid
 
                 # TODO: how does this behave?
-=======
-        if feature.parent_aid:
-            if feature.parent_aid in self.lookup:
-                puid = self.get_uid(feature.parent_aid, feature)
-                feature.set_parent_uid(puid)
->>>>>>> 802966b2e9d020e3ea167f9341ed44b8cc79054e
                 if feature not in self.features[puid].children:
                     self.features[puid].add_a_child(feature)
             else:
