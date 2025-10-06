@@ -91,8 +91,14 @@ class GFeature(BaseModel):
             return sorted(chain)
         return chain
 
+    def inherit_gid_props(self, other):
+        self.uid = other.uid
+        self.aid = other.gid
+        self.puid = other.puid
+        self.paid = other.paid
+
     # getter, setter methods
-    
+
     @property
     def uid(self):
         return self.gid.uid
