@@ -144,12 +144,13 @@ class GAn(BaseModel):
                 )
         return gfeat
 
-    # TODO: add option to sort
-    def to_gff3(self, fp):
+    # TODO : add option to sort
+    # TODO : generalize to handle both gff AND gtf formats
+    def to_gff(self, fp):
         with open(fp, "w") as f:
-            f.write("##gff-version 3\n")
             for feature in self.features.values():
                 f.write(feature.to_gff_entry(include_children=False))
+            
     def save_as_gix(self, file_path : str):
         with open(file_path, 'wb') as fh:
             pickle.dump(self, fh)

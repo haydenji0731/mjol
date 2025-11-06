@@ -30,7 +30,7 @@ class GFeature(BaseModel):
         self._populate_gid()
     
     def __repr__(self) -> str:
-        return f"{self.feature_type}:{self.aid or ''}:{self.uid},{self.chr},{self.strand},{self.start}-{self.end}"
+        return f"{self.feature_type}:{self.aid or 'None'}:{self.uid},{self.chr},{self.strand},{self.start}-{self.end}"
     
     def _populate_gid(self):
         self.gid.uid = self._assign_uid()
@@ -60,15 +60,29 @@ class GFeature(BaseModel):
     def set_parent_uid(self, puid):
         self.gid.puid = puid
     
-    def to_gff_entry(self, include_children : bool = False):
+    def to_gff_entry(
+        self,
+        start_offset : int = 0,
+        end_offset : int = 0,
+        include_children : bool = False
+    ) -> str:
         attributes_str =";".join(f"{key}={value}" for key, value in self.attributes.items())
+        score = self.score if self.score and self.score >= 0.0 else '.'
+        start = self.start + start_offset
+        end = self.end + end_offset
         entry = "\t".join([
             str(x) if x is not None else '.' for x in [
-                self.chr, self.src, self.feature_type, self.start, self.end, self.score, self.strand, self.frame, attributes_str
+                self.chr, self.src, self.feature_type, start, end, score, self.strand, self.frame, attributes_str
             ]
         ])
         if include_children:
-            children_entry = [child.to_gff_entry(include_children=True) for child in self.children]
+            children_entry = [
+                child.to_gff_entry(
+                    start_offset = start_offset,
+                    end_offset = end_offset,
+                    include_children = True
+                ) for child in self.children
+            ]
             return entry + '\n' + ''.join(children_entry)
         return entry + '\n'
     
@@ -93,7 +107,7 @@ class GFeature(BaseModel):
 
     def inherit_gid_props(self, other):
         self.uid = other.uid
-        self.aid = other.gid
+        self.aid = other.aid
         self.puid = other.puid
         self.paid = other.paid
 
