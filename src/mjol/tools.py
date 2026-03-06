@@ -56,3 +56,9 @@ def solve_synonym(
                                 update_attributes_rule, exclude_attributes)
 
     return (old_entries, old_feature.to_gff_entry(include_children=True))
+
+def summarize_by_ftype(db : GAn) -> dict[str, list[GFeature]]:
+    out = dict()
+    for ftype in db.ftypes:
+        out[ftype] = [x for x in db.features.values() if x.feature_type == ftype]
+    return out

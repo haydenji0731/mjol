@@ -13,6 +13,7 @@ class GAn(BaseModel):
     file_fmt : str
     iak : str = 'id'
     pak : str = 'parent'
+    ftypes : set = set()
     features : dict = Field(default_factory=dict)
     lookup : dict = Field(default_factory=dict)
     
@@ -29,6 +30,9 @@ class GAn(BaseModel):
         rows = in_df.to_dict('records')
         for row in rows:
             f = self._create_gfeature(row)
+
+            self.ftypes.add(f.feature_type)
+
             if f.uid in self.features:
                 raise RuntimeError(f'non-unique uid detected : {f.uid}')
             
@@ -159,6 +163,18 @@ class GAn(BaseModel):
     def clear(self):
         features = dict()
         lookup = dict()
+    
+    @property
+    def uids(self) -> list[str]:
+        if not self.features:
+            raise ValueError("uids property does not exist for an empty GAn object")
+        return list(self.features.keys())
+
+    @property
+    def aids(self) -> list[str]:
+        if not self.lookup:
+            raise ValueError("aids (i.e., attribute IDs) property does not exist for an empty GAn object")
+        return list(self.lookup.keys())
 
 def load_from_gix(file_path : str):
     try:
@@ -167,3 +183,7 @@ def load_from_gix(file_path : str):
     except Exception as e:
         raise RuntimeError(f"error while loading {file_path} : {e}")
     return res
+
+# helper functions
+def get_uids(l : list[GFeature]) -> list[str]:
+    return [x.uid for x in l]
