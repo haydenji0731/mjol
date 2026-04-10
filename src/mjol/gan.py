@@ -16,9 +16,16 @@ class GAn(BaseModel):
     ftypes : set = set()
     features : dict = Field(default_factory=dict)
     lookup : dict = Field(default_factory=dict)
+    is_0b : bool = False
     
     # NOTE: child feature must come after parent feature in GFF file
-    def build_db(self):
+    def build_db(self, coord_system:str='1b'):
+
+        if coord_system not in ['0b', '1b']:
+            raise ValueError(f'unknown coordinate system {coord_system} (expected: [0b, 1b])')
+    
+        self.is_0b = coord_system == '0b'
+
         in_df = pd.read_csv(self.file_name, sep='\t', comment='#', header=None)
         in_df.columns = HDR
         in_df['attributes'] = in_df['attributes'].apply(
@@ -133,12 +140,15 @@ class GAn(BaseModel):
         return feature.to_gff_entry(include_children)
 
     def _create_gfeature(self, row):
+        start, end = row['start'], row['end']
+        if self.is_0b:
+            start, end = start - 1, end
         gfeat = GFeature(
                     chr = row['chr'],
                     src = row['src'],
                     feature_type = row['feature_type'],
-                    start = row['start'],
-                    end = row['end'],
+                    start = start,
+                    end = end,
                     score = None if row['score'] == '.' else row['score'],
                     strand = row['strand'],
                     frame = row['frame'],
@@ -151,9 +161,10 @@ class GAn(BaseModel):
     # TODO : add option to sort
     # TODO : generalize to handle both gff AND gtf formats
     def to_gff(self, fp):
+        start_offset = 1 if self.is_0b else 0
         with open(fp, "w") as f:
             for feature in self.features.values():
-                f.write(feature.to_gff_entry(include_children=False))
+                f.write(feature.to_gff_entry(start_offset=start_offset, include_children=False))
             
     def save_as_gix(self, file_path : str):
         with open(file_path, 'wb') as fh:
